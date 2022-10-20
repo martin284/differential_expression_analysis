@@ -25,7 +25,7 @@ library(reshape2)
 We specify the path to the directory with the data from featureCount and save
 the corresponding files.
 ```{r, message = FALSE, results="hide", echo=TRUE}
-dir <- "C:/Users/Martin/Documents/Master/Forschungspraktikum/differential_expression_analysis/data/"
+dir <- "C:/Users/Martin/Documents/Master/Forschungspraktikum/differential_expression_analysis/project/data/"
 files = list.files(paste0(dir,"feature_counts_output"))
 ```
 
