@@ -1,0 +1,210 @@
+---
+title: "Differential Expression Analysis"
+subtitle: "Differential Expression Analysis after KD of FUBP1 gene"
+author: "Martin Brand"
+date: "2022-10-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = FALSE, results="hide", echo=TRUE}
+library(DESeq2)
+library(pheatmap)
+library(RColorBrewer)
+library(apeglm)
+library(ggplot2)
+library(ggrastr)
+library(dplyr)
+library(ggrepel)
+library(reshape2)
+```
+
+We specify the path to the directory with the data from featureCount and save
+the corresponding files.
+```{r, message = FALSE, results="hide", echo=TRUE}
+dir <- "C:/Users/Martin/Documents/Master/Forschungspraktikum/differential_expression_analysis/data/"
+files = list.files(paste0(dir,"feature_counts_output"))
+```
+
+## DESeq Analysis
+We create a sample table with two wild type cell lines and two cell lines with
+FUBP1 KD.
+```{r, message = FALSE, echo=TRUE}
+sampleFiles <- files
+sampleCondition <- factor(rep(c("Ctrl", "KD"), each=2))
+sampleReplicate <- factor(paste("Rep", 1:2, sep = "_",2))
+
+sampleTable <- data.frame(sampleName = sampleFiles,
+                          fileName = sampleFiles,
+                          condition = sampleCondition,
+                          replicate = sampleReplicate)
+sampleTable
+```
+
+
+We create a count table that we need for the function 
+**DESeqDataSetFromMatrix()**. The count table must contain the number of assigned
+reads for each gene in each cell line. **DESeqDataSetFromMatrix()** returns the
+**DESeqDataSet** that we need for further analysis. After running the analysis
+we look at the final count table for a better understanding.
+
+```{r, message = FALSE, warning=TRUE, echo=TRUE}
+df_count <- read.table(paste0(dir, "feature_counts_output/", files[1]), header = T) 
+df_count <- df_count[, c(1,ncol(df_count))]
+
+for (i in 2:4) {
+  tmp <- read.table(paste0(dir, "feature_counts_output/", files[i]), header = T)
+  tmp <- tmp[, c(1,ncol(tmp))]
+  df_count <- merge(df_count, tmp, by = "Geneid")
+}
+
+colnames(df_count)[2:5] <- c("WT1", "WT2", "KD1", "KD2")
+# delete all entries with zero counts
+# problem: doubled genes
+df_count <- df_count[rowSums(df_count[,2:5]) != 0,]
+# delete version number of gene IDs
+gene.IDs <- substr(df_count$Geneid, 1, 15)
+# move gene IDs from column to row names
+rownames(df_count) <- gene.IDs 
+df_count$Geneid <- NULL
+
+dds <- DESeqDataSetFromMatrix(countData = df_count,
+                              colData = sampleTable,
+                              design = ~ condition)
+
+dds <- DESeq(dds)
+
+head(counts(dds))
+```
+
+## Heatmap
+For quality control we present the results in a heatmap. We see that the differences between wild types and FUBP1 KD cell lines are larger than between the two wild types or the two FUBP1 KD cell lines.
+```{r, message = FALSE, results="hide", echo=TRUE}
+rld <- rlog(dds, blind = FALSE)
+sampleDists <- dist(t(assay(rld)))
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(rld$condition, rld$replicate, sep = "-")
+colnames(sampleDistMatrix) <- rownames(sampleDistMatrix)
+colors <- colorRampPalette(rev(brewer.pal(9, "Blues")))(255)
+
+pheatmap(sampleDistMatrix, clustering_distance_rows = sampleDists,
+         clustering_distance_cols = sampleDists, col=colors)
+```
+
+## Principal Component Analysis
+We do a PCA to clarify the differences between the control cell lines and treated cell lines. The difference of PC1 is strikingly large. 
+```{r, message = FALSE, echo=TRUE}
+pcaData <- plotPCA(rld, intgroup=c("condition", "replicate"), returnData=TRUE)
+percentVar <- round(100 * attr(pcaData,"percentVar"), digits=1)
+ggplot(pcaData, aes(x=PC1, y=PC2, color=condition, shape=replicate)) +
+  geom_point(size=3) +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed() +
+  theme(aspect.ratio = 1)
+```
+
+## Find most up and downregulated genes
+We format the data for further calculations. 
+```{r, message = FALSE, echo=TRUE}
+res <- results(dds, contrast = c("condition","KD","Ctrl"))
+head(res[c(2,5)])
+```
+
+The log2FoldChange is given for every gene. We use this parameter to find the
+genes whose expression has changed the most.
+```{r, message = FALSE, echo=TRUE}
+TopUP <- res[order(res$log2FoldChange, decreasing = TRUE),c(2,5)]
+TopUP <- TopUP[1:5,]
+TopUP
+```
+
+We can save the results and retrieve them at any time.
+```{r, message = FALSE, results="hide", echo=TRUE}
+write.table(TopUP, file = paste0(dir,"DESeq2_up.tab"), quote=FALSE,
+            sep="\t")
+TopUP <- read.table(paste0(dir,"DESeq2_up.tab"))
+```
+
+## MA plots
+We visualize the results as an MA plot. Every dot represents a gene. The y axis shows the logfoldchange which indicates how much the expression of each gene has changed. The x axis shows the mean of normalized counts (assigned reads) which is an indicator of the reliability of the data. All genes with a P-value greater than 0.1 are defined as regulated and marked with blue.
+```{r, message = FALSE, echo=TRUE}
+plotMA(res, main="MA plot")
+```
+
+We remove the noise (high logfoldchanges by low read counts) using the function lfcShrink. The logfoldchanges are adapted to the read counts. We save the shrunked logfoldchanges in our result table. We see in the figure that we have no more outliers with low reliability. 
+```{r, message = FALSE, echo=TRUE}
+res.shrink <- lfcShrink(dds = dds, res = res, coef = 2)
+res$log2FoldChange.shrink <- res.shrink$log2FoldChange
+plotMA(res.shrink, main="MA plot with shrunken fold changes")
+```
+
+We use ggplot because it allows us to customise like highlighting the gene of the FUBP1 protein. We see that the gene was clearly regulated down.
+```{r, message = FALSE, warning= FALSE, echo=TRUE}
+res.df <- as.data.frame(res)
+# add column which tells about regulation
+res.df$regulated <- res.df$padj < 0.01
+res.df$regulated[is.na(res.df$regulated)] <- FALSE
+# add columns which tells about up and down regulation
+res.df <- mutate(res.df, up_down = case_when(
+  regulated & log2FoldChange > 0 ~ "up",
+  regulated & log2FoldChange < 0 ~ "down",
+  TRUE ~ "not"
+))
+res.df$up_down <- factor(res.df$up_down)
+# add column for labeling only FUBP1
+res.df$to.label <- NA
+res.df$to.label[rownames(res.df)=="ENSG00000162613"] <- "FUBP1"
+# res.df$to.label[rownames(res.df)=="ENSG00000063244"] <- "U2AF2"
+# res.df$to.label[rownames(res.df)=="ENSG00000168066"] <- "SF1"
+# res.df$to.label[rownames(res.df)=="ENSG00000179950"] <- "PUF60"
+# res.df$to.label[rownames(res.df)=="ENSG00000119953"] <- "SPF30"
+# res.df$to.label[rownames(res.df)=="ENSG00000126698"] <- "SPF31"
+# res.df$to.label[rownames(res.df)=="ENSG00000134453"] <- "SPF45"
+# res.df$to.label[rownames(res.df)=="ENSG00000085872"] <- "CHERP"
+# res.df$to.label[rownames(res.df)=="ENSG00000241537"] <- "SR140"
+# res.df$to.label[rownames(res.df)=="ENSG00000109606"] <- "HPrp43"
+# res.df$to.label[rownames(res.df)=="ENSG00000145833"] <- "HPrp5"
+
+ggplot(res.df, aes(x=log10(baseMean), y=log2FoldChange, col=up_down, label=to.label)) +
+  ggrastr::rasterise(geom_point(), dpi=300) +
+  geom_point() +
+  geom_point(data=subset(res.df,!is.na(to.label)),color="red") +
+  scale_color_manual(values = c(`up` = "blue", `not` = "black",
+  `down` = "dodgerblue")) +
+  geom_label_repel() +
+  coord_cartesian(ylim = c(-7,7)) 
+
+#problem: a in legend
+
+
+```
+
+We visualize the data as P value distribution. Most genes have a very low
+P value. 
+```{r, message = FALSE, echo=TRUE}
+hist(res$pvalue)
+```
+
+As a quality check we visualize the read counts of FUBP1 in the different samples. We see that gene is clearly knocked down. 
+```{r, message = FALSE, echo=TRUE}
+counts <- counts(dds, normalized=TRUE)
+colnames(counts) <- colData(dds)$condition
+counts.df <- melt(counts) # rows all columns under each other
+colnames(counts.df) <- c("gene.ID", "condition", "norm.count")
+counts.fubp1 <- subset(counts.df, gene.ID == "ENSG00000162613")
+
+ggplot(counts.fubp1, aes(x=condition, y=norm.count)) + 
+  geom_point() +
+  scale_y_log10() 
+```
+
+## Saving data
+Saving the data as .Rdata allows to efficiently load them into follow-up script.
+```{r, message = FALSE, echo=TRUE}
+res.df <- as.data.frame(res)
+save(res.df, file=paste0(dir, "results_table.Rdata"))
+```
