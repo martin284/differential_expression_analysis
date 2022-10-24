@@ -108,7 +108,7 @@ ggplot(pcaData, aes(x=PC1, y=PC2, color=condition, shape=replicate)) +
 ```
 
 ## Find most up and downregulated genes
-We format the data for further calculations. 
+We format the data for further calculations and have a look at the new format.
 ```{r, message = FALSE, echo=TRUE}
 res <- results(dds, contrast = c("condition","KD","Ctrl"))
 head(res[c(2,5)])
@@ -142,8 +142,8 @@ res$log2FoldChange.shrink <- res.shrink$log2FoldChange
 plotMA(res.shrink, main="MA plot with shrunken fold changes")
 ```
 
-We use ggplot because it allows us to customise like highlighting the gene of the FUBP1 protein. We see that the gene was clearly regulated down.
-```{r, message = FALSE, warning= FALSE, echo=TRUE}
+We use ggplot to reproduce the MA plot with shrunken fold changes because it allows us to customise like highlighting genes, e.g. FUBP1. We see that the gene was clearly regulated down. The knockdown of FUBP1 seems to have little or no effect on the expression of most U2 related genes. Only SPF31 and HPrp43 are downregulated.
+```{r, message = FALSE, warning= TRUE, echo=TRUE}
 res.df <- as.data.frame(res)
 # add column which tells about regulation
 res.df$regulated <- res.df$padj < 0.01
@@ -155,28 +155,33 @@ res.df <- mutate(res.df, up_down = case_when(
   TRUE ~ "not"
 ))
 res.df$up_down <- factor(res.df$up_down)
-# add column for labeling only FUBP1
-res.df$to.label <- NA
-res.df$to.label[rownames(res.df)=="ENSG00000162613"] <- "FUBP1"
-# res.df$to.label[rownames(res.df)=="ENSG00000063244"] <- "U2AF2"
-# res.df$to.label[rownames(res.df)=="ENSG00000168066"] <- "SF1"
-# res.df$to.label[rownames(res.df)=="ENSG00000179950"] <- "PUF60"
-# res.df$to.label[rownames(res.df)=="ENSG00000119953"] <- "SPF30"
-# res.df$to.label[rownames(res.df)=="ENSG00000126698"] <- "SPF31"
-# res.df$to.label[rownames(res.df)=="ENSG00000134453"] <- "SPF45"
-# res.df$to.label[rownames(res.df)=="ENSG00000085872"] <- "CHERP"
-# res.df$to.label[rownames(res.df)=="ENSG00000241537"] <- "SR140"
-# res.df$to.label[rownames(res.df)=="ENSG00000109606"] <- "HPrp43"
-# res.df$to.label[rownames(res.df)=="ENSG00000145833"] <- "HPrp5"
 
-ggplot(res.df, aes(x=log10(baseMean), y=log2FoldChange, col=up_down, label=to.label)) +
-  ggrastr::rasterise(geom_point(), dpi=300) +
+# mark genes for labels
+labeled_genes <- c(FUBP1="ENSG00000162613", U2AF2="ENSG00000063244", SF1="ENSG00000168066",
+                   PUF60="ENSG00000179950", SPF30="ENSG00000119953", SPF31="ENSG00000126698",
+                   SPF45="ENSG00000134453", CHERP="ENSG00000085872", SR140="ENSG00000241537",
+                   HPrp43="ENSG00000109606", HPrp5="ENSG00000145833")
+index <- match(labeled_genes, rownames(res))
+
+# add column for labeling chosen genes
+res.df$to.label <- NA
+res.df$to.label[index] <- names(labeled_genes)
+
+# ggplot(res.df, aes(x=log10(baseMean), y=log2FoldChange.shrink, col=up_down, label=to.label)) +
+#   # ggrastr::rasterise(geom_point(), dpi=300) +
+#   geom_point(res.df, is.na(to.label), color=res.df$color) +
+#   geom_point(data=subset(res.df,is.na(to.label) & up_down=="up"),color="blue") +
+#   geom_point(data=subset(res.df,is.na(to.label) & up_down=="down"),color="deepskyblue") +
+#   geom_point(data=subset(res.df,is.na(to.label) & regulated==FALSE),color="darkgrey") +
+#   geom_point(data=subset(res.df,!is.na(to.label)),color="red") +
+#   geom_label_repel(max.overlaps = Inf) +
+#   coord_cartesian(ylim = c(-5,6))
+
+ggplot(res.df, aes(x=log10(baseMean), y=log2FoldChange.shrink, col=up_down, label=to.label))+
   geom_point() +
-  geom_point(data=subset(res.df,!is.na(to.label)),color="red") +
-  scale_color_manual(values = c(`up` = "blue", `not` = "black",
-  `down` = "dodgerblue")) +
-  geom_label_repel() +
-  coord_cartesian(ylim = c(-7,7)) 
+  geom_point(data=subset(res.df,!is.na(to.label)),color="black") +
+  geom_label_repel(max.overlaps = Inf, show.legend = FALSE)
+
 
 #problem: a in legend
 
