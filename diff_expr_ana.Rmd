@@ -194,17 +194,23 @@ P value.
 hist(res$pvalue)
 ```
 
-As a quality check we visualize the read counts of FUBP1 in the different samples. We see that gene is clearly knocked down. 
+We visualize the read counts of FUBP1 and U2 related genes in the different samples. We see that the number of read counts differs largely for the FUBP1 gene but very little or not for all U2 related genes.
 ```{r, message = FALSE, echo=TRUE}
 counts <- counts(dds, normalized=TRUE)
 colnames(counts) <- colData(dds)$condition
 counts.df <- melt(counts) # rows all columns under each other
 colnames(counts.df) <- c("gene.ID", "condition", "norm.count")
-counts.fubp1 <- subset(counts.df, gene.ID == "ENSG00000162613")
+counts.labeled_genes <- subset(counts.df, gene.ID %in% labeled_genes)
 
-ggplot(counts.fubp1, aes(x=condition, y=norm.count)) + 
+# change data structure of labeled genes for labeller parameter
+labeled_genes.subst = names(labeled_genes)
+names(labeled_genes.subst) <- labeled_genes
+
+ggplot(counts.labeled_genes, aes(x=condition, y=norm.count)) + 
   geom_point() +
-  scale_y_log10() 
+  scale_y_log10() +
+  facet_wrap(~gene.ID, scales="free", labeller = as_labeller(labeled_genes.subst)) +
+  ylim(0, 7000)
 ```
 
 ## Saving data
