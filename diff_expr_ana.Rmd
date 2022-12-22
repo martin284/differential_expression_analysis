@@ -1,6 +1,6 @@
 ---
-title: "Differential Expression Analysis"
-subtitle: "Differential Expression Analysis in FUBP1 KD cell lines compared to WT cell lines"
+title: "Differential Expression Analysis - FUBP1 KD"
+subtitle: "Differential Expression Analysis of FUBP1 KD and WT cell lines"
 author: "Martin Brand"
 date: "`r format(Sys.time(), '%B %e, %Y')`"
 output:
@@ -34,7 +34,7 @@ bibliography: references.bib
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r, message=FALSE}
+```{r, message=FALSE, warning=FALSE}
 library(DESeq2)
 library(pheatmap)
 library(RColorBrewer)
@@ -47,7 +47,7 @@ library(reshape2)
 ```
 
 ## Preprocessing of the Data
-I load the raw files that contain the read counts and create a sample table with two wild type cell lines and two cell lines with FUBP1 KD.
+I loaded the read counts tables which output from featureCounts and created an experiment design table with two wild type cell lines and two cell lines with FUBP1 KD.
 ```{r}
 dir <- "C:/Users/Martin/Documents/Master/Forschungspraktikum/differential_expression_analysis/project/data/"
 files = list.files(paste0(dir,"feature_counts_output"))
@@ -64,7 +64,7 @@ sampleTable
 ```
 
 
-I put the data into a specific format that is required for the DESeq analysis and perform the analysis. The result table shows the number of read counts for every gene.
+I put the data into a specific format that is required for the DESeq analysis and performed the analysis. The result table shows the number of read counts for genes.
 ```{r, message=FALSE}
 # fit format
 count_table <- read.table(paste0(dir, "feature_counts_output/", files[1]), header = T) 
@@ -99,7 +99,7 @@ head(counts(dds))
 ```
 
 ## Quality Control
-For quality control, I calculate the differences between the samples using the regulised log transformation and visualize the results in a heatmap. The differences of the read counts between WT cell lines and FUBP1 KD cell lines are larger than between the two WT cell lines or the two FUBP1 KD cell lines.
+For quality control, I calculated the differences between the samples using the regulized log transformation and visualized the results in a heatmap. As the heatmap shows, the differences between WT and FUBP1 KD cell lines are larger than the differences between replicates.
 ```{r}
 rld <- rlog(dds, blind = FALSE)
 sampleDists <- dist(t(assay(rld)))
@@ -112,7 +112,7 @@ pheatmap(sampleDistMatrix, clustering_distance_rows = sampleDists,
          clustering_distance_cols = sampleDists, col=colors, legend = FALSE)
 ```
 
-A second quality check is done with PCA. The result shows differences between the control cell lines and the FUBP1 KD cell lines. PC1 is responsible for 97.7% of the variance and shows a large difference between the groups.
+The second quality check is done with PCA. The result shows differences among all the samples. PC1 is responsible for 97.7% of the variance and shows a large difference between the groups.
 ```{r}
 pcaData <- plotPCA(rld, intgroup=c("condition", "replicate"), returnData=TRUE)
 percentVar <- round(100 * attr(pcaData,"percentVar"), digits=1)
@@ -125,7 +125,7 @@ ggplot(pcaData, aes(x=PC1, y=PC2, color=condition, shape=replicate)) +
 ```
 
 ## Up and Downregulated Genes
-To identify the regulated genes, I extract the result table, which contains, among other things, the log2FoldChanges and the adjusted p-values. I also adjust the log-fold changes based on the read coverage using the package from @apeglm.
+To identify the regulated genes upon the FUBP1 KD, I extracted the result table, which contains the log2 fold changes upon the treatment and the adjusted p-values. Besides, I also adjusted the log2 fold changes based on the read counts using the package from @apeglm.
 ```{r, message=FALSE}
 # extract result table and add column for adjusted log fold changes
 res <- results(dds, contrast = c("condition","KD","Ctrl"))
@@ -136,7 +136,16 @@ res <- as.data.frame(res)
 head(res[c(1,2,6)])
 ```
 
-I visualize the results as an MA plot in which every data point represents a gene. The y-axis shows the log fold change, which indicates how much the expression of a gene has changed. The x-axis shows the mean of normalized counts (assigned reads), which is an indicator of the reliability of the data. All data points marked as blue represent genes with a p-value greater than 0.1. U2 related genes published by @wahl are labeled.
+I visualized the distribution of p-values before and after adjustment, which shows the effect of multiple testing corrections.
+```{r}
+hist(res$pvalue, main = "Distribution of raw P-Values", xlab = "P-Value")
+```
+The distribution after the correction shows a lower variance.
+```{r}
+hist(res$padj, main = "Distribution of adjusted P-Values", xlab = "Adjusted P-Value")
+```
+
+I visualized the differential expression results in a MA plot in which every data point represents a gene. The y-axis shows the log2 fold change, which indicates gene expression changes upon the FUBP1 KD. The x-axis shows the log transformed mean value of normalized counts (assigned reads), which is an indicator of the reliability of the data. All data points marked as blue represent genes with a p-value greater than 0.1. U2-related genes published by @wahl are labeled with their gene names.
 ```{r}
 res$regulated <- res$padj < 0.1
 res$regulated[is.na(res$regulated)] <- FALSE
@@ -164,25 +173,14 @@ ggplot(res, aes(x=log10(baseMean), y=log2FoldChange, col=up_down, label=to.label
   geom_label_repel(max.overlaps = Inf, show.legend = FALSE)
 ```
 
-In the plot above are many genes with high log fold changes and low read counts. These data points are not reliable. That is why the log fold changes have been adjusted to the read counts. In the new plot, the number of outliers with low reliability could be significantly reduced. These data suggest is that KD of FUBP1 does not lead to significantly higher expression of U2 related genes.
+In the plot above, there are many genes with high absolute log2 fold changes and low read counts. These data points are not reliable. That is why the log fold changes have been adjusted to the read counts. In the new plot, the number of outliers with low reliability could be significantly reduced. This result suggests the KD of FUBP1 does not lead to significant change of expression of U2-related genes.
 ```{r}
 ggplot(res, aes(x=log10(baseMean), y=log2FoldChange.shrink, col=up_down, label=to.label))+
   geom_point(size=0.7) +
   geom_point(data=subset(res,to.label!=""),color="black") +
   geom_label_repel(max.overlaps = Inf, show.legend = FALSE)
 ```
-
-I visualize the distribution of p-values before and after adjustment, which shows the effect of multiple testing correction.
-```{r}
-hist(res$pvalue, main = "Distribution of raw P-Values", xlab = "P-Value")
-```
- The distribution after the correction shows a lower variance.
-```{r}
-hist(res$padj, main = "Distribution of adjusted P-Values", xlab = "Adjusted P-Value")
-```
-
-
-I visualize the normalized numbers of read counts of FUBP1 and U2 related genes in the different samples. The number of read counts differs largely for the FUBP1 gene but very little or not for all U2 related genes.
+I visualized the normalized read counts of FUBP1 and U2-related genes in the different samples. The number of read counts differs strongly for the FUBP1 gene but very weakly or not for all U2-related genes.
 ```{r, message=FALSE}
 counts <- counts(dds, normalized=TRUE)
 colnames(counts) <- colData(dds)$condition
@@ -198,5 +196,5 @@ ggplot(counts.labeled_genes, aes(x=condition, y=norm.count)) +
   scale_y_log10() +
   facet_wrap(~gene.ID, scales="free", labeller = as_labeller(labeled_genes.subst)) +
   ylim(0, 7000) +
-  ylab("Normalised Counts")
+  ylab("Normalized Counts")
 ```
