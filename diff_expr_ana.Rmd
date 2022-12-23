@@ -34,7 +34,7 @@ bibliography: references.bib
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Scientific Background and Research Question
+# Scientific Background
 Scientific background of this analysis is the research into the FUBP1 protein. FUBP1 has been identified as a DNA-binding protein by @fubp1_dna. In recent years, studies have shown that FUBP1 is also an RNA-binding protein that plays an important role in alternative splicing by @fubp1_rna. However, the exact function of FUBP1 is not yet known. In this project, I want to explore the genetic dependencies of FUBP1. The aim of this analysis was to find out whether knock-down of the FUBP1 gene leads to a change in gene expression of the U2-related genes published by @wahl.
 
 ```{r, message=FALSE, warning=FALSE}
@@ -49,7 +49,7 @@ library(ggrepel)
 library(reshape2)
 ```
 
-# Preprocessing of the Data
+# Data Preprocessing
 I loaded the read counts tables which output from featureCounts and created an experiment design table with two wild type cell lines and two cell lines with FUBP1 KD.
 ```{r}
 dir <- "C:/Users/Martin/Documents/Master/Forschungspraktikum/differential_expression_analysis/project/data/"
@@ -180,6 +180,7 @@ ggplot(res, aes(x=log10(baseMean), y=log2FoldChange.shrink, col=up_down, label=t
   geom_point(data=subset(res,to.label!=""),color="black") +
   geom_label_repel(max.overlaps = Inf, show.legend = FALSE)
 ```
+
 I visualized the normalized read counts of FUBP1 and U2-related genes in the different samples. The number of read counts differs strongly for the FUBP1 gene but very weakly or not for all U2-related genes.
 ```{r, message=FALSE}
 counts <- counts(dds, normalized=TRUE)
