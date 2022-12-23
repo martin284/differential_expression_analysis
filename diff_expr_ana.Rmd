@@ -34,7 +34,7 @@ bibliography: references.bib
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Scientific Background and Research Question
+# Scientific Background and Research Question
 Scientific background of this analysis is the research into the FUBP1 protein. FUBP1 has been identified as a DNA-binding protein by @fubp1_dna. In recent years, studies have shown that FUBP1 is also an RNA-binding protein that plays an important role in alternative splicing by @fubp1_rna. However, the exact function of FUBP1 is not yet known. In this project, I want to explore the genetic dependencies of FUBP1. The aim of this analysis was to find out whether knock-down of the FUBP1 gene leads to a change in gene expression of the U2-related genes published by @wahl.
 
 ```{r, message=FALSE, warning=FALSE}
@@ -49,7 +49,7 @@ library(ggrepel)
 library(reshape2)
 ```
 
-## Preprocessing of the Data
+# Preprocessing of the Data
 I loaded the read counts tables which output from featureCounts and created an experiment design table with two wild type cell lines and two cell lines with FUBP1 KD.
 ```{r}
 dir <- "C:/Users/Martin/Documents/Master/Forschungspraktikum/differential_expression_analysis/project/data/"
@@ -101,7 +101,7 @@ dds <- DESeq(dds)
 head(counts(dds))
 ```
 
-## Quality Control
+# Quality Control
 For quality control, I calculated the differences between the samples using the regulized log transformation and visualized the results in a heatmap. As the heatmap shows, the differences between WT and FUBP1 KD cell lines are larger than the differences between replicates.
 ```{r}
 rld <- rlog(dds, blind = FALSE)
@@ -128,7 +128,7 @@ ggplot(pcaData, aes(x=PC1, y=PC2, color=condition, shape=replicate)) +
 ```
 Considering both quality checks, we can say that the data quality is very good as we can see the expected patterns. Gene expression for FUBP1 KD and WT cell lines differs more than for replicates.
 
-## Up and Downregulated Genes
+# Up and Downregulated Genes
 To identify the regulated genes upon the FUBP1 KD, I extracted the result table, which contains the log2 fold changes upon the treatment and the adjusted p-values. Besides, I also adjusted the log2 fold changes based on the read counts using the package from @apeglm.
 ```{r, message=FALSE}
 # extract result table and add column for adjusted log fold changes
@@ -199,5 +199,5 @@ ggplot(counts.labeled_genes, aes(x=condition, y=norm.count)) +
   ylab("Normalized Counts")
 ```
 
-## Summary and Outlook
+# Summary and Outlook
 In summary, knock-down of the FUBP1 gene does not lead to a change in expression of U2-related genes. Further analysis could done using the approach by @chan_wrn.
