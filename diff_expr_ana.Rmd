@@ -34,6 +34,9 @@ bibliography: references.bib
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Scientific Background and Research Question
+Scientific background of this analysis is the research into the FUBP1 protein. FUBP1 has been identified as a DNA-binding protein by @fubp1_dna. In recent years, studies have shown that FUBP1 is also an RNA-binding protein that plays an important role in alternative splicing by @fubp1_rna. However, the exact function of FUBP1 is not yet known. In this project, I want to explore the genetic dependencies of FUBP1. The aim of this analysis was to find out whether knock-down of the FUBP1 gene leads to a change in gene expression of the U2-related genes published by @wahl.
+
 ```{r, message=FALSE, warning=FALSE}
 library(DESeq2)
 library(pheatmap)
@@ -64,7 +67,7 @@ sampleTable
 ```
 
 
-I put the data into a specific format that is required for the DESeq analysis and performed the analysis. The result table shows the number of read counts for genes.
+I put the data into a specific format that is required for the DESeq analysis and performed the analysis. The result from the DESeq analysis contains the number of read counts for genes for each sample.
 ```{r, message=FALSE}
 # fit format
 count_table <- read.table(paste0(dir, "feature_counts_output/", files[1]), header = T) 
@@ -112,7 +115,7 @@ pheatmap(sampleDistMatrix, clustering_distance_rows = sampleDists,
          clustering_distance_cols = sampleDists, col=colors, legend = FALSE)
 ```
 
-The second quality check is done with PCA. The result shows differences among all the samples. PC1 is responsible for 97.7% of the variance and shows a large difference between the groups.
+The second quality check is done with PCA. The FUBP1 KD and WT cell lines show a significant difference in PC1, which accounts for 97.7% of the variance in the data.
 ```{r}
 pcaData <- plotPCA(rld, intgroup=c("condition", "replicate"), returnData=TRUE)
 percentVar <- round(100 * attr(pcaData,"percentVar"), digits=1)
@@ -123,6 +126,7 @@ ggplot(pcaData, aes(x=PC1, y=PC2, color=condition, shape=replicate)) +
   coord_fixed() +
   theme(aspect.ratio = 1)
 ```
+Considering both quality checks, we can say that the data quality is very good as we can see the expected patterns. Gene expression for FUBP1 KD and WT cell lines differs more than for replicates.
 
 ## Up and Downregulated Genes
 To identify the regulated genes upon the FUBP1 KD, I extracted the result table, which contains the log2 fold changes upon the treatment and the adjusted p-values. Besides, I also adjusted the log2 fold changes based on the read counts using the package from @apeglm.
@@ -136,16 +140,12 @@ res <- as.data.frame(res)
 head(res[c(1,2,6)])
 ```
 
-I visualized the distribution of p-values before and after adjustment, which shows the effect of multiple testing corrections.
-```{r}
-hist(res$pvalue, main = "Distribution of raw P-Values", xlab = "P-Value")
-```
-The distribution after the correction shows a lower variance.
+For quality control of the test result, I visualized the distribution of adjusted p-values. The distribution looks as expected, because the left bar shows that there are changes in gene expression. 
 ```{r}
 hist(res$padj, main = "Distribution of adjusted P-Values", xlab = "Adjusted P-Value")
 ```
 
-I visualized the differential expression results in a MA plot in which every data point represents a gene. The y-axis shows the log2 fold change, which indicates gene expression changes upon the FUBP1 KD. The x-axis shows the log transformed mean value of normalized counts (assigned reads), which is an indicator of the reliability of the data. All data points marked as blue represent genes with a p-value greater than 0.1. U2-related genes published by @wahl are labeled with their gene names.
+I visualized the differential expression results in a MA plot in which every data point represents a gene. The y-axis shows the log2 fold change, which indicates gene expression changes upon the FUBP1 KD. The x-axis shows the log transformed mean value of normalized counts (assigned reads), which is an indicator of the reliability of the data. All data points marked as blue represent genes with a p-value greater than 0.1. U2-related genes are labeled with their gene names.
 ```{r}
 res$regulated <- res$padj < 0.1
 res$regulated[is.na(res$regulated)] <- FALSE
@@ -173,7 +173,7 @@ ggplot(res, aes(x=log10(baseMean), y=log2FoldChange, col=up_down, label=to.label
   geom_label_repel(max.overlaps = Inf, show.legend = FALSE)
 ```
 
-In the plot above, there are many genes with high absolute log2 fold changes and low read counts. These data points are not reliable. That is why the log fold changes have been adjusted to the read counts. In the new plot, the number of outliers with low reliability could be significantly reduced. This result suggests the KD of FUBP1 does not lead to significant change of expression of U2-related genes.
+In the plot above, there are many genes with high absolute log2 fold changes and low read counts. These data points are not reliable. That is why the log2 fold changes have been adjusted to the read counts. The plot below shows the adjusted log2 fold changes. It can be seen that the number of data points with low reliability and high log2 fold changes could be significantly reduced. This result suggests the KD of FUBP1 does not lead to significant change of expression of U2-related genes.
 ```{r}
 ggplot(res, aes(x=log10(baseMean), y=log2FoldChange.shrink, col=up_down, label=to.label))+
   geom_point(size=0.7) +
@@ -198,3 +198,6 @@ ggplot(counts.labeled_genes, aes(x=condition, y=norm.count)) +
   ylim(0, 7000) +
   ylab("Normalized Counts")
 ```
+
+## Summary and Outlook
+In summary, knock-down of the FUBP1 gene does not lead to a change in expression of U2-related genes. Further analysis could done using the approach by @chan_wrn.
