@@ -35,7 +35,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Scientific Background
-Scientific background of this analysis is the research into the FUBP1 protein. FUBP1 has been identified as a DNA-binding protein by @fubp1_dna. In recent years, studies have shown that FUBP1 is also an RNA-binding protein that plays an important role in alternative splicing by @fubp1_rna. However, the exact function of FUBP1 is not yet known. In this project, I want to explore the genetic dependencies of FUBP1. The aim of this analysis was to find out whether knock-down of the FUBP1 gene leads to a change in gene expression of the U2-related genes published by @wahl.
+Scientific background of this analysis is the research into the FUBP1 (Far Upstream Element Binding Protein 1). FUBP1 has been identified as a DNA-binding protein by @fubp1_dna. In recent years, studies have shown that FUBP1 is also an RNA-binding protein that plays an important role in alternative splicing by @fubp1_rna. However, the exact function of FUBP1 is not yet known. In this project, I want to explore the genetic dependencies of FUBP1. The aim of this analysis was to find out whether knock-down (KD) of the FUBP1 gene leads to a change in gene expression of the U2-related genes published by @wahl.
 
 ```{r, message=FALSE, warning=FALSE}
 library(DESeq2)
@@ -50,7 +50,7 @@ library(reshape2)
 ```
 
 # Data Preprocessing
-I loaded the read counts tables which output from featureCounts and created an experiment design table with two wild type cell lines and two cell lines with FUBP1 KD.
+I loaded the read counts tables which output from featureCounts and created an experiment design table with two wild type (WT) cell lines and two cell lines with FUBP1 KD.
 ```{r}
 dir <- "C:/Users/Martin/Documents/Master/Forschungspraktikum/differential_expression_analysis/project/data/"
 files = list.files(paste0(dir,"feature_counts_output"))
@@ -67,7 +67,7 @@ sampleTable
 ```
 
 
-I put the data into a specific format that is required for the DESeq analysis and performed the analysis. The result from the DESeq analysis contains the number of read counts for genes for each sample.
+I put the data into the specific format that is required for the DESeq analysis and performed the analysis. The result from the DESeq analysis contains the number of read counts for genes for each sample.
 ```{r, message=FALSE}
 # fit format
 count_table <- read.table(paste0(dir, "feature_counts_output/", files[1]), header = T) 
@@ -115,7 +115,7 @@ pheatmap(sampleDistMatrix, clustering_distance_rows = sampleDists,
          clustering_distance_cols = sampleDists, col=colors, legend = FALSE)
 ```
 
-The second quality check is done with PCA. The FUBP1 KD and WT cell lines show a significant difference in PC1, which accounts for 97.7% of the variance in the data.
+The second quality check is done with a Principal Component Analysis (PCA). The FUBP1 KD and WT cell lines show a significant difference in Principal Component 1 (PC1), which accounts for 97.7% of the variance in the data.
 ```{r}
 pcaData <- plotPCA(rld, intgroup=c("condition", "replicate"), returnData=TRUE)
 percentVar <- round(100 * attr(pcaData,"percentVar"), digits=1)
